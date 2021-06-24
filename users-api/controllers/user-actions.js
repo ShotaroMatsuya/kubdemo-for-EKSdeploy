@@ -18,7 +18,7 @@ const validateCredentials = (email, password) => {
   }
 };
 
-const checkUserExistence = async (email) => {
+const checkUserExistence = async email => {
   let existingUser;
   try {
     existingUser = await User.findOne({ email: email });
@@ -31,10 +31,10 @@ const checkUserExistence = async (email) => {
   }
 };
 
-const getHashedPassword = async (password) => {
+const getHashedPassword = async password => {
   try {
     const response = await axios.get(
-      `http://${process.env.AUTH_API_ADDRESSS}/hashed-pw/${password}`
+      `http://${process.env.AUTH_API_ADDRESS}/hashed-pw/${password}`
     );
     return response.data.hashed;
   } catch (err) {
@@ -43,14 +43,15 @@ const getHashedPassword = async (password) => {
   }
 };
 
-const getTokenForUser = async (password, hashedPassword) => {
-  console.log(password, hashedPassword);
+const getTokenForUser = async (password, hashedPassword, uid) => {
+  console.log(password, hashedPassword, uid);
   try {
     const response = await axios.post(
-      `http://${process.env.AUTH_API_ADDRESSS}/token`,
+      `http://${process.env.AUTH_API_ADDRESS}/token`,
       {
         password: password,
         hashedPassword: hashedPassword,
+        userId: uid,
       }
     );
     return response.data.token;
@@ -93,6 +94,7 @@ const createUser = async (req, res, next) => {
   let savedUser;
   try {
     savedUser = await newUser.save();
+    console.log(savedUser.id + ' extracted id from mongoose');
   } catch (err) {
     const error = createError(err.message || 'Failed to create user.', 500);
     return next(error);
@@ -100,13 +102,9 @@ const createUser = async (req, res, next) => {
 
   const logEntry = `${new Date().toISOString()} - ${savedUser.id} - ${email}\n`;
 
-  fs.appendFile(
-    path.join('/app', 'users', 'users-log.txt'),
-    logEntry,
-    (err) => {
-      console.log(err);
-    }
-  );
+  fs.appendFile(path.join('/app', 'users', 'users-log.txt'), logEntry, err => {
+    console.log(err);
+  });
 
   res
     .status(201)
@@ -126,6 +124,8 @@ const verifyUser = async (req, res, next) => {
   let existingUser;
   try {
     existingUser = await User.findOne({ email: email });
+    // console.log('fetched existingUser via mongoose');
+    // console.log(existingUser);
   } catch (err) {
     const error = createError(
       err.message || 'Failed to find and verify user.',
@@ -144,8 +144,13 @@ const verifyUser = async (req, res, next) => {
 
   try {
     console.log(password, existingUser);
-    const token = await getTokenForUser(password, existingUser.password);
-    res.status(200).json({ token: token, userId: existingUser.id });
+    const token = await getTokenForUser(
+      password,
+      existingUser.password,
+      existingUser._id
+    );
+    console.log(token + 'extracted token from authAPI');
+    res.status(200).json({ token: token, userId: existingUser._id });
   } catch (err) {
     next(err);
   }
