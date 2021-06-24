@@ -1,5 +1,5 @@
 kind: StorageClass
-apiVersion: storage.k8s.io/vi
+apiVersion: storage.k8s.io/v1
 metadata:
   name: efs-sc
 provisioner: efs.csi.aws.com
@@ -24,7 +24,7 @@ kind: PersistentVolumeClaim
 metadata:
   name: efs-pvc
 spec: 
-  access:
+  accessModes:
     - ReadWriteMany
   storageClassName: efs-sc
   resources:
